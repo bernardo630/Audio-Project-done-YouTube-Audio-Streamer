@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Audio Streamer</title>
+  <style>
+    /* ── Reset & base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f11;
+      --surface:   #1a1a1f;
+      --border:    #2e2e36;
+      --accent:    #ff4b4b;
+      --accent-dk: #cc3535;
+      --text:      #e8e8ec;
+      --muted:     #8888a0;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── Card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .logo {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo svg { width: 18px; height: 18px; fill: #fff; }
+    h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.3px; }
+    h1 span { color: var(--accent); }
+
+    /* ── Input row ─────────────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 11px 22px;
+      transition: background .2s, opacity .2s;
+      white-space: nowrap;
+    }
+    button:hover  { background: var(--accent-dk); }
+    button:active { opacity: .8; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Loader ────────────────────────────────────────────────── */
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: .85rem;
+      margin-bottom: 20px;
+    }
+    .loader.visible { display: flex; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ─────────────────────────────────────────────────── */
+    .error {
+      display: none;
+      background: rgba(255,75,75,.12);
+      border: 1px solid rgba(255,75,75,.35);
+      border-radius: 8px;
+      color: #ff7070;
+      font-size: .85rem;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+    }
+    .error.visible { display: block; }
+
+    /* ── Video info card ───────────────────────────────────────── */
+    .info-card {
+      display: none;
+      gap: 14px;
+      margin-bottom: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .info-card.visible { display: flex; }
+
+    .thumb {
+      width: 110px;
+      flex-shrink: 0;
+      object-fit: cover;
+      display: block;
+    }
+
+    .info-text {
+      padding: 14px 14px 14px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .info-title {
+      font-size: .9rem;
+      font-weight: 600;
+      line-height: 1.35;
+      /* clamp to 2 lines */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .info-author { color: var(--muted); font-size: .8rem; }
+    .info-duration { color: var(--muted); font-size: .78rem; margin-top: auto; }
+
+    /* ── Audio player ──────────────────────────────────────────── */
+    .player-wrap { display: none; }
+    .player-wrap.visible { display: block; }
+
+    audio {
+      width: 100%;
+      border-radius: 8px;
+      accent-color: var(--accent);
+      /* tint the native controls on Chromium */
+      color-scheme: dark;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: .75rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <!-- simple play-triangle icon -->
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </div>
+    <h1>YouTube <span>Audio</span> Streamer</h1>
+  </div>
+
+  <!-- Input -->
+  <div class="input-row">
+    <input
+      id="urlInput"
+      type="text"
+      placeholder="Cole aqui a URL do YouTube…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button id="playBtn">Play</button>
+  </div>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    Buscando informações do vídeo…
+  </div>
+
+  <!-- Error -->
+  <div class="error" id="error"></div>
+
+  <!-- Info card (thumbnail + title) -->
+  <div class="info-card" id="infoCard">
+    <img class="thumb" id="thumb" src="" alt="Thumbnail" />
+    <div class="info-text">
+      <div class="info-title" id="infoTitle"></div>
+      <div class="info-author" id="infoAuthor"></div>
+      <div class="info-duration" id="infoDuration"></div>
+    </div>
+  </div>
+
+  <!-- Audio player -->
+  <div class="player-wrap" id="playerWrap">
+    <audio id="audioPlayer" controls></audio>
+  </div>
+
+  <div class="footer">Streaming direto — nenhum arquivo é salvo no servidor.</div>
+</div>
+
+<script>
+  // ── Elements ──────────────────────────────────────────────────
+  const urlInput   = document.getElementById('urlInput');
+  const playBtn    = document.getElementById('playBtn');
+  const loader     = document.getElementById('loader');
+  const errorEl    = document.getElementById('error');
+  const infoCard   = document.getElementById('infoCard');
+  const playerWrap = document.getElementById('playerWrap');
+  const audioEl    = document.getElementById('audioPlayer');
+
+  // ── Helpers ───────────────────────────────────────────────────
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.classList.add('visible');
+  }
+
+  function hideError() {
+    errorEl.classList.remove('visible');
+  }
+
+  function setLoading(on) {
+    loader.classList.toggle('visible', on);
+    playBtn.disabled = on;
+  }
+
+  function formatDuration(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return h
+      ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function isYouTubeUrl(url) {
+    try {
+      const { hostname } = new URL(url);
+      return ['www.youtube.com','youtube.com','youtu.be','m.youtube.com'].includes(hostname);
+    } catch { return false; }
+  }
+
+  // ── Main handler ──────────────────────────────────────────────
+  async function handlePlay() {
+    const raw = urlInput.value.trim();
+
+    // Reset UI
+    hideError();
+    infoCard.classList.remove('visible');
+    playerWrap.classList.remove('visible');
+    audioEl.pause();
+    audioEl.src = '';
+
+    if (!raw) {
+      showError('Por favor, cole uma URL do YouTube.');
+      return;
+    }
+
+    if (!isYouTubeUrl(raw)) {
+      showError('URL inválida. Certifique-se de usar um link do YouTube.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Fetch metadata
+      const infoRes = await fetch(`/info?url=${encodeURIComponent(raw)}`);
+      const info = await infoRes.json();
+
+      if (!infoRes.ok) {
+        throw new Error(info.error || 'Erro ao buscar informações do vídeo.');
+      }
+
+      // 2. Populate info card
+      document.getElementById('thumb').src        = info.thumbnail ?? '';
+      document.getElementById('infoTitle').textContent  = info.title;
+      document.getElementById('infoAuthor').textContent = info.author;
+      document.getElementById('infoDuration').textContent = info.durationSec
+        ? `Duração: ${formatDuration(info.durationSec)}`
+        : '';
+
+      infoCard.classList.add('visible');
+
+      // 3. Wire up the audio element to the stream route
+      //    The browser will request /stream and the server pipes bytes directly.
+      audioEl.src = `/stream?url=${encodeURIComponent(raw)}`;
+      playerWrap.classList.add('visible');
+      audioEl.play().catch(() => {
+        // Autoplay blocked — user can press play on the native controls
+      });
+
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Event listeners ───────────────────────────────────────────
+  playBtn.addEventListener('click', handlePlay);
+
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handlePlay();
+  });
+
+  // Show error if the audio element itself fails (e.g. mid-stream disconnect)
+  audioEl.addEventListener('error', () => {
+    if (audioEl.src) showError('Falha ao reproduzir o áudio. Tente novamente.');
+  });
+</script>
+
+</body>
+</html>
